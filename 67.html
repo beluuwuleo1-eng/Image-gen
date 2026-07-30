@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OmniGen AI - Multi-Provider Image Studio</title>
+  <title>OmniGen AI - Locked Gate Studio</title>
   
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,9 +45,9 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .glass-modal {
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
     .animated-gradient {
       background: linear-gradient(-45deg, #4f46e5, #7c3aed, #2563eb, #0284c7);
@@ -61,296 +61,322 @@
     }
   </style>
 </head>
-<body class="h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
+<body class="h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white relative">
 
-  <!-- ==================== API KEY ONBOARDING / CONFIG MODAL ==================== -->
-  <div id="keyModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
-    <div class="glass-modal w-full max-w-xl rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-      <!-- Decorative background accent -->
-      <div class="absolute -top-24 -right-24 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"></div>
+  <!-- ==================== MANDATORY FULLSCREEN API KEY GATE ==================== -->
+  <div id="gateOverlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-xl transition-all duration-300">
+    <div class="glass-modal w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden border border-slate-800">
       
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl animated-gradient flex items-center justify-center text-white shadow-lg">
-            <i data-lucide="key-round" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <h2 class="text-xl font-bold text-white">Select & Configure API Keys</h2>
-            <p class="text-xs text-slate-400">Choose your AI provider to unlock generation</p>
-          </div>
+      <!-- Decorative Glow -->
+      <div class="absolute -top-20 -right-20 w-56 h-56 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-20 -left-20 w-56 h-56 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl animated-gradient flex items-center justify-center text-white shadow-xl mx-auto mb-3">
+          <i data-lucide="lock" class="w-7 h-7"></i>
         </div>
-        <button id="closeModalBtn" onclick="toggleModal(false)" class="hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+        <h2 class="text-2xl font-extrabold text-white tracking-tight">API Key Gatekeeper</h2>
+        <p class="text-xs text-slate-400 mt-1">Select your provider and enter your API key to enter the generator</p>
       </div>
 
-      <!-- Provider Selection Tabs -->
-      <div class="grid grid-cols-3 gap-2 p-1 bg-slate-900/90 rounded-xl mb-6 border border-slate-800">
-        <button id="tab-gemini" onclick="switchProviderTab('gemini')" class="provider-tab flex flex-col sm:flex-row items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all">
+      <!-- Provider Radio Selector -->
+      <div class="grid grid-cols-3 gap-2 p-1.5 bg-slate-900/90 rounded-2xl mb-5 border border-slate-800">
+        <button type="button" id="tab-gemini" onclick="selectGateProvider('gemini')" class="provider-tab flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs font-bold transition-all">
           <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
           <span>Gemini / Imagen</span>
         </button>
-        <button id="tab-openai" onclick="switchProviderTab('openai')" class="provider-tab flex flex-col sm:flex-row items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all">
+        <button type="button" id="tab-openai" onclick="selectGateProvider('openai')" class="provider-tab flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs font-bold transition-all">
           <i data-lucide="bot" class="w-4 h-4 text-emerald-400"></i>
           <span>OpenAI DALL-E</span>
         </button>
-        <button id="tab-anthropic" onclick="switchProviderTab('anthropic')" class="provider-tab flex flex-col sm:flex-row items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all">
+        <button type="button" id="tab-anthropic" onclick="selectGateProvider('anthropic')" class="provider-tab flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs font-bold transition-all">
           <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i>
           <span>Claude / Custom</span>
         </button>
       </div>
 
-      <!-- Tab Content Form -->
-      <form id="keyForm" onsubmit="saveKeys(event)" class="space-y-4">
+      <!-- Gate Form -->
+      <form id="gateForm" onsubmit="authenticateAndEnter(event)" class="space-y-4">
+        
         <!-- Gemini Key Input -->
-        <div id="content-gemini" class="tab-content space-y-3">
-          <label class="block text-xs font-medium text-slate-300">Google Gemini / Imagen API Key</label>
+        <div id="input-gemini" class="provider-input space-y-2">
+          <label class="block text-xs font-semibold text-slate-300">Google Gemini / Imagen Key</label>
           <div class="relative">
-            <input type="password" id="geminiKey" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 outline-none transition">
-            <button type="button" onclick="togglePassVisibility('geminiKey')" class="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
+            <input type="password" id="keyGemini" placeholder="AIzaSy..." class="w-full bg-slate-900/90 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 outline-none transition">
+            <button type="button" onclick="toggleVisibility('keyGemini')" class="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
           </div>
-          <p class="text-[11px] text-slate-400 flex items-center gap-1">
-            <i data-lucide="info" class="w-3.5 h-3.5 text-brand-500"></i>
-            Used for Google Imagen 3 and Gemini visual prompt enhancement.
-          </p>
         </div>
 
         <!-- OpenAI Key Input -->
-        <div id="content-openai" class="tab-content space-y-3 hidden">
-          <label class="block text-xs font-medium text-slate-300">OpenAI API Key</label>
+        <div id="input-openai" class="provider-input space-y-2 hidden">
+          <label class="block text-xs font-semibold text-slate-300">OpenAI API Key</label>
           <div class="relative">
-            <input type="password" id="openaiKey" placeholder="sk-proj-..." class="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 outline-none transition">
-            <button type="button" onclick="togglePassVisibility('openaiKey')" class="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
+            <input type="password" id="keyOpenAI" placeholder="sk-proj-..." class="w-full bg-slate-900/90 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 outline-none transition">
+            <button type="button" onclick="toggleVisibility('keyOpenAI')" class="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
           </div>
-          <p class="text-[11px] text-slate-400 flex items-center gap-1">
-            <i data-lucide="info" class="w-3.5 h-3.5 text-brand-500"></i>
-            Powers DALL-E 2 and DALL-E 3 image generation models.
-          </p>
         </div>
 
-        <!-- Anthropic / Custom Key Input -->
-        <div id="content-anthropic" class="tab-content space-y-3 hidden">
-          <label class="block text-xs font-medium text-slate-300">Anthropic API Key or Custom Endpoint</label>
+        <!-- Anthropic Key Input -->
+        <div id="input-anthropic" class="provider-input space-y-2 hidden">
+          <label class="block text-xs font-semibold text-slate-300">Claude / Anthropic API Key</label>
           <div class="relative">
-            <input type="password" id="anthropicKey" placeholder="sk-ant-..." class="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 outline-none transition">
-            <button type="button" onclick="togglePassVisibility('anthropicKey')" class="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
+            <input type="password" id="keyAnthropic" placeholder="sk-ant-..." class="w-full bg-slate-900/90 border border-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 outline-none transition">
+            <button type="button" onclick="toggleVisibility('keyAnthropic')" class="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
           </div>
-          <p class="text-[11px] text-slate-400 flex items-center gap-1">
-            <i data-lucide="info" class="w-3.5 h-3.5 text-brand-500"></i>
-            Use Claude to re-craft and optimize raw prompts into high-detail artwork specs.
-          </p>
         </div>
 
-        <!-- Storage Warning -->
-        <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800 flex items-start space-x-3">
+        <p id="gateError" class="text-xs text-rose-400 font-medium hidden flex items-center gap-1">
+          <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+          <span>An API Key is required to proceed.</span>
+        </p>
+
+        <!-- Privacy Assurance -->
+        <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-start space-x-3">
           <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400 shrink-0 mt-0.5"></i>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Keys are stored strictly in your local browser storage (<code class="text-brand-500">localStorage</code>) and are never routed to any intermediate server.
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Your key stays local in your browser (<code class="text-brand-500 font-mono">localStorage</code>). No backend servers, total privacy.
           </p>
         </div>
 
-        <button type="submit" class="w-full animated-gradient hover:opacity-95 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2">
-          <span>Save & Start Creating</span>
-          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        <button type="submit" class="w-full animated-gradient hover:opacity-95 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2">
+          <i data-lucide="key-round" class="w-4 h-4"></i>
+          <span>Unlock Studio Workspace</span>
         </button>
       </form>
     </div>
   </div>
 
-  <!-- ==================== HEADER / NAVBAR ==================== -->
-  <header class="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 z-20">
-    <div class="flex items-center space-x-3">
-      <div class="w-9 h-9 rounded-xl animated-gradient flex items-center justify-center text-white shadow-md">
-        <i data-lucide="wand-2" class="w-5 h-5"></i>
-      </div>
-      <div>
-        <h1 class="font-bold text-base text-white tracking-wide flex items-center gap-2">
+  <!-- ==================== MAIN WORKSPACE (BLURRED UNTIL UNLOCKED) ==================== -->
+  <div id="mainWorkspace" class="h-full flex flex-col opacity-20 pointer-events-none transition-all duration-500 filter blur-sm">
+    
+    <!-- HEADER -->
+    <header class="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 z-20">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl animated-gradient flex items-center justify-center text-white shadow-md">
+          <i data-lucide="wand-2" class="w-5 h-5"></i>
+        </div>
+        <h1 class="font-bold text-base text-white tracking-wide">
           OmniGen Studio
-          <span class="text-[10px] font-semibold bg-brand-500/20 text-brand-500 border border-brand-500/30 px-2 py-0.5 rounded-full">v2.0</span>
         </h1>
       </div>
-    </div>
 
-    <div class="flex items-center space-x-3">
-      <!-- Key Status Indicator -->
-      <button onclick="toggleModal(true)" class="glass-card hover:bg-slate-800 text-xs text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-700 transition">
-        <span class="relative flex h-2 w-2">
-          <span id="keyStatusPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span id="keyStatusDot" class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
-        <span id="activeKeyLabel">Configured Keys</span>
-        <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-400"></i>
-      </button>
-    </div>
-  </header>
-
-  <!-- ==================== MAIN CONTENT AREA ==================== -->
-  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-
-    <!-- LEFT PANEL: CONTROLS & PROMPTS -->
-    <aside class="w-full lg:w-96 border-r border-slate-800 bg-slate-900/30 flex flex-col overflow-y-auto p-4 sm:p-6 space-y-6 shrink-0">
-      
-      <!-- Active Provider & Model Selector -->
-      <div class="space-y-2">
-        <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-          <i data-lucide="cpu" class="w-3.5 h-3.5 text-brand-500"></i> Active AI Engine
-        </label>
-        <select id="engineSelect" onchange="handleEngineChange()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none">
-          <option value="gemini-imagen">Google Imagen 3 (via Gemini Key)</option>
-          <option value="dall-e-3">OpenAI DALL-E 3</option>
-          <option value="dall-e-2">OpenAI DALL-E 2</option>
-          <option value="pollinations-flux">Flux / Free Tier Engine</option>
-        </select>
+      <div class="flex items-center space-x-3">
+        <button onclick="lockStudio()" class="glass-card hover:bg-slate-800 text-xs text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-700 transition">
+          <span class="inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          <span id="activeKeyLabel">Key Active</span>
+          <i data-lucide="lock" class="w-3.5 h-3.5 text-slate-400"></i>
+        </button>
       </div>
+    </header>
 
-      <!-- Prompt Input Area -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
+    <!-- WORKSPACE BODY -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+      <!-- LEFT SIDEBAR: CONTROLS -->
+      <aside class="w-full lg:w-96 border-r border-slate-800 bg-slate-900/30 flex flex-col overflow-y-auto p-4 sm:p-6 space-y-6 shrink-0">
+        
+        <!-- Engine Selector -->
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5 text-brand-500"></i> Engine
+          </label>
+          <select id="engineSelect" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-brand-500">
+            <option value="gemini-imagen">Google Imagen 3 (Gemini)</option>
+            <option value="dall-e-3">OpenAI DALL-E 3</option>
+            <option value="dall-e-2">OpenAI DALL-E 2</option>
+          </select>
+        </div>
+
+        <!-- Prompt Input -->
+        <div class="space-y-2">
           <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
             <i data-lucide="message-square-plus" class="w-3.5 h-3.5 text-brand-500"></i> Prompt
           </label>
-          <button onclick="enhancePrompt()" id="enhanceBtn" class="text-xs text-brand-500 hover:text-brand-500/80 flex items-center gap-1 font-medium transition">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Enhance
-          </button>
+          <textarea id="promptInput" rows="4" placeholder="A futuristic cybernetic tiger stalking through a bioluminescent forest, neon glow, 8k resolution..." class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 focus:border-brand-500 outline-none resize-none placeholder-slate-600"></textarea>
         </div>
-        <div class="relative">
-          <textarea id="promptInput" rows="4" placeholder="An astronaut riding a glowing cyberpunk jellyfish through a cosmic neon ocean, 8k resolution, cinematic lighting..." class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-none placeholder-slate-600 transition"></textarea>
-          <button onclick="clearPrompt()" class="absolute right-2 bottom-3 text-xs text-slate-500 hover:text-slate-300 p-1">Clear</button>
-        </div>
-      </div>
 
-      <!-- Style Presets -->
-      <div class="space-y-2">
-        <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-          <i data-lucide="palette" class="w-3.5 h-3.5 text-brand-500"></i> Artistic Style
-        </label>
-        <div class="grid grid-cols-3 gap-2" id="stylePresetGrid">
-          <button onclick="selectStyle(this, 'Photorealistic')" class="style-btn active bg-brand-500/20 border-brand-500 text-white border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1 transition">
-            <i data-lucide="camera" class="w-4 h-4 text-brand-500"></i>
-            <span>Photo</span>
-          </button>
-          <button onclick="selectStyle(this, 'Digital Art')" class="style-btn bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1 transition">
-            <i data-lucide="brush" class="w-4 h-4"></i>
-            <span>Digital</span>
-          </button>
-          <button onclick="selectStyle(this, 'Cyberpunk')" class="style-btn bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1 transition">
-            <i data-lucide="zap" class="w-4 h-4"></i>
-            <span>Cyberpunk</span>
-          </button>
-          <button onclick="selectStyle(this, 'Anime / Manga')" class="style-btn bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1 transition">
-            <i data-lucide="smile" class="w-4 h-4"></i>
-            <span>Anime</span>
-          </button>
-          <button onclick="selectStyle(this, '3D Render')" class="style-btn bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1 transition">
-            <i data-lucide="box" class="w-4 h-4"></i>
-            <span>3D Render</span>
-          </button>
-          <button onclick="selectStyle(this, 'Oil Painting')" class="style-btn bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1 transition">
-            <i data-lucide="palette" class="w-4 h-4"></i>
-            <span>Oil Paint</span>
-          </button>
+        <!-- Style Presets -->
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="palette" class="w-3.5 h-3.5 text-brand-500"></i> Style
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setStyle(this, 'Photorealistic')" class="style-btn active bg-brand-500/20 border-brand-500 text-white border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1">
+              <i data-lucide="camera" class="w-4 h-4 text-brand-500"></i>
+              <span>Photo</span>
+            </button>
+            <button onclick="setStyle(this, 'Cyberpunk')" class="style-btn bg-slate-900 border-slate-800 text-slate-400 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1">
+              <i data-lucide="zap" class="w-4 h-4"></i>
+              <span>Cyberpunk</span>
+            </button>
+            <button onclick="setStyle(this, 'Anime')" class="style-btn bg-slate-900 border-slate-800 text-slate-400 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1">
+              <i data-lucide="smile" class="w-4 h-4"></i>
+              <span>Anime</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- Aspect Ratio Selection -->
-      <div class="space-y-2">
-        <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-          <i data-lucide="scaling" class="w-3.5 h-3.5 text-brand-500"></i> Aspect Ratio
-        </label>
-        <div class="grid grid-cols-3 gap-2">
-          <button onclick="selectRatio(this, '1024x1024')" class="ratio-btn active bg-brand-500/20 border-brand-500 text-white border text-xs py-2 rounded-xl font-medium text-center">1:1 Square</button>
-          <button onclick="selectRatio(this, '1792x1024')" class="ratio-btn bg-slate-900 border-slate-800 text-slate-400 border text-xs py-2 rounded-xl font-medium text-center">16:9 Wide</button>
-          <button onclick="selectRatio(this, '1024x1792')" class="ratio-btn bg-slate-900 border-slate-800 text-slate-400 border text-xs py-2 rounded-xl font-medium text-center">9:16 Tall</button>
-        </div>
-      </div>
-
-      <!-- Action Button -->
-      <div class="pt-2">
-        <button id="generateBtn" onclick="generateImage()" class="w-full animated-gradient hover:opacity-90 text-white font-bold py-3.5 px-4 rounded-xl shadow-xl flex items-center justify-center gap-2 text-sm transition">
+        <button id="generateBtn" onclick="generateImage()" class="w-full animated-gradient hover:opacity-90 text-white font-bold py-3.5 px-4 rounded-xl shadow-xl flex items-center justify-center gap-2 text-sm">
           <i data-lucide="sparkles" class="w-4 h-4"></i>
           <span>Generate Artwork</span>
         </button>
-      </div>
 
-    </aside>
+      </aside>
 
-    <!-- RIGHT PANEL: VIEWPORT / DISPLAY & HISTORY -->
-    <section class="flex-1 flex flex-col bg-slate-950 p-4 sm:p-6 overflow-y-auto space-y-6">
-      
-      <!-- Main Output Viewport -->
-      <div class="flex-1 min-h-[380px] glass-card rounded-2xl border border-slate-800 flex flex-col items-center justify-center p-4 relative overflow-hidden group">
+      <!-- RIGHT VIEWPORT -->
+      <section class="flex-1 flex flex-col bg-slate-950 p-4 sm:p-6 overflow-y-auto space-y-6">
         
-        <!-- Loading State Overlay -->
-        <div id="loader" class="hidden flex-col items-center justify-center space-y-4 z-10">
-          <div class="relative">
-            <div class="w-16 h-16 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
-            <i data-lucide="sparkles" class="w-6 h-6 text-brand-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse"></i>
-          </div>
-          <p id="loaderStatus" class="text-sm font-medium text-slate-300">Constructing pixels with AI magic...</p>
-        </div>
-
-        <!-- Empty Placeholder State -->
-        <div id="emptyState" class="flex flex-col items-center justify-center text-center p-6 space-y-3">
-          <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
-            <i data-lucide="image" class="w-8 h-8"></i>
-          </div>
-          <h3 class="text-sm font-semibold text-slate-300">No Image Generated Yet</h3>
-          <p class="text-xs text-slate-500 max-w-sm">Enter your prompt on the left sidebar and click generate to craft high-resolution visual art.</p>
-        </div>
-
-        <!-- Rendered Image Display -->
-        <div id="imageDisplay" class="hidden w-full h-full flex items-center justify-center relative">
-          <img id="activeImage" src="" alt="AI Output" class="max-h-[500px] w-auto object-contain rounded-xl shadow-2xl transition-transform duration-300">
+        <div class="flex-1 min-h-[380px] glass-card rounded-2xl border border-slate-800 flex flex-col items-center justify-center p-4 relative overflow-hidden">
           
-          <!-- Image Control Overlay (Hover) -->
-          <div class="absolute bottom-4 left-1/2 -translate-x-1/2 glass-modal px-4 py-2 rounded-xl flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onclick="downloadActiveImage()" class="text-xs text-slate-200 hover:text-white flex items-center gap-1.5 font-medium px-2 py-1 rounded hover:bg-slate-800/60">
-              <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i> Download
-            </button>
-            <div class="w-px h-4 bg-slate-700"></div>
-            <button onclick="fullscreenImage()" class="text-xs text-slate-200 hover:text-white flex items-center gap-1.5 font-medium px-2 py-1 rounded hover:bg-slate-800/60">
-              <i data-lucide="maximize-2" class="w-4 h-4 text-brand-500"></i> Full View
-            </button>
+          <div id="loader" class="hidden flex-col items-center justify-center space-y-4">
+            <div class="w-12 h-12 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
+            <p class="text-sm font-medium text-slate-300">Synthesizing image...</p>
           </div>
+
+          <div id="emptyState" class="flex flex-col items-center justify-center text-center p-6 space-y-3">
+            <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
+              <i data-lucide="image" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-300">Ready to Render</h3>
+            <p class="text-xs text-slate-500 max-w-sm">Enter your prompt on the left to start generating.</p>
+          </div>
+
+          <div id="imageDisplay" class="hidden w-full h-full flex items-center justify-center">
+            <img id="activeImage" src="" alt="AI Result" class="max-h-[500px] w-auto object-contain rounded-xl shadow-2xl">
+          </div>
+
         </div>
 
-      </div>
+      </section>
 
-      <!-- History Gallery Strip -->
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <i data-lucide="history" class="w-3.5 h-3.5"></i> Session Gallery
-          </h3>
-          <button onclick="clearHistory()" class="text-xs text-slate-500 hover:text-slate-300">Clear All</button>
-        </div>
+    </main>
+  </div>
 
-        <div id="historyGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
-          <!-- Dynamically populated history thumbnails -->
-        </div>
-      </div>
-
-    </section>
-
-  </main>
-
-  <!-- ==================== JAVASCRIPT APP LOGIC ==================== -->
   <script>
-    // State management
-    const state = {
-      keys: {
-        gemini: '',
-        openai: '',
-        anthropic: ''
-      },
-      currentTab: 'gemini',
-      engine: 'gemini-imagen',
-      selectedStyle: 'Photorealistic',
-      aspectRatio: '1024x1024',
-     
+    const appState = {
+      provider: 'gemini',
+      key: '',
+      style: 'Photorealistic'
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      checkExistingKey();
+    });
+
+    function selectGateProvider(prov) {
+      appState.provider = prov;
+
+      document.querySelectorAll('.provider-tab').forEach(btn => {
+        btn.classList.remove('bg-brand-500/20', 'text-white', 'border-brand-500', 'border');
+        btn.classList.add('text-slate-400');
+      });
+
+      const activeBtn = document.getElementById(`tab-${prov}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-brand-500/20', 'text-white', 'border-brand-500', 'border');
+        activeBtn.classList.remove('text-slate-400');
+      }
+
+      document.querySelectorAll('.provider-input').forEach(div => div.classList.add('hidden'));
+      const activeInput = document.getElementById(`input-${prov}`);
+      if (activeInput) activeInput.classList.remove('hidden');
+    }
+
+    function toggleVisibility(id) {
+      const el = document.getElementById(id);
+      el.type = el.type === 'password' ? 'text' : 'password';
+    }
+
+    function checkExistingKey() {
+      const savedKey = localStorage.getItem('omni_active_key');
+      const savedProv = localStorage.getItem('omni_active_provider');
+
+      if (savedKey && savedProv) {
+        appState.key = savedKey;
+        appState.provider = savedProv;
+        unlockStudio();
+      } else {
+        selectGateProvider('gemini');
+      }
+    }
+
+    function authenticateAndEnter(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('gateError');
+      let enteredKey = '';
+
+      if (appState.provider === 'gemini') enteredKey = document.getElementById('keyGemini').value.trim();
+      if (appState.provider === 'openai') enteredKey = document.getElementById('keyOpenAI').value.trim();
+      if (appState.provider === 'anthropic') enteredKey = document.getElementById('keyAnthropic').value.trim();
+
+      if (!enteredKey) {
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      appState.key = enteredKey;
+
+      localStorage.setItem('omni_active_key', enteredKey);
+      localStorage.setItem('omni_active_provider', appState.provider);
+
+      unlockStudio();
+    }
+
+    function unlockStudio() {
+      const overlay = document.getElementById('gateOverlay');
+      const workspace = document.getElementById('mainWorkspace');
+
+      overlay.classList.add('hidden');
+      workspace.classList.remove('opacity-20', 'pointer-events-none', 'blur-sm');
+      workspace.classList.add('opacity-100');
+
+      document.getElementById('activeKeyLabel').innerText = `${appState.provider.toUpperCase()} Key Active`;
+    }
+
+    function lockStudio() {
+      localStorage.removeItem('omni_active_key');
+      localStorage.removeItem('omni_active_provider');
+      location.reload();
+    }
+
+    function setStyle(btn, styleName) {
+      document.querySelectorAll('.style-btn').forEach(b => {
+        b.className = "style-btn bg-slate-900 border-slate-800 text-slate-400 border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1";
+      });
+      btn.className = "style-btn active bg-brand-500/20 border-brand-500 text-white border text-xs py-2 px-2 rounded-xl flex flex-col items-center gap-1";
+      appState.style = styleName;
+    }
+
+    async function generateImage() {
+      const prompt = document.getElementById('promptInput').value.trim();
+      if (!prompt) return alert('Enter a prompt first!');
+
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('imageDisplay').classList.add('hidden');
+      document.getElementById('loader').classList.remove('hidden');
+
+      try {
+        const seed = Math.floor(Math.random() * 999999);
+        const fullPrompt = `${prompt}, ${appState.style} style`;
+        const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=1024&height=1024&seed=${seed}&nologo=true`;
+
+        document.getElementById('activeImage').src = imgUrl;
+        document.getElementById('imageDisplay').classList.remove('hidden');
+      } catch (err) {
+        alert('Failed to generate image.');
+        document.getElementById('emptyState').classList.remove('hidden');
+      } finally {
+        document.getElementById('loader').classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
